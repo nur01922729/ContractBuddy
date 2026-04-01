@@ -1,16 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api from "../lib/axios";
 import {
   Upload,
   FileText,
   LogOut,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  User,
+  Trash2,
+  Eye,
+  Calendar,
   Flag,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  MessageCircle,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  Download,
 } from "lucide-react";
 
 interface Clause {
@@ -19,29 +16,85 @@ interface Clause {
   explanation: string;
 }
 
-interface AnalysisResult {
+interface Analysis {
+  overall_risk: number;
+  summary: string;
+  top_risks?: string[];
+  clauses?: Clause[];
+}
+
+interface Contract {
+  id: number;
   filename: string;
-  analysis: {
-    overall_risk: number;
-    summary: string;
-    top_risks: string[];
-    clauses: Clause[];
-  };
+  jurisdiction: string;
+  risk_report: string | Analysis;
+  created_at: string;
+}
+
+interface CurrentUser {
+  full_name: string;
+  email: string;
 }
 
 export default function Dashboard() {
+  const [activeTab, setActiveTab] = useState<"new" | "history">("new");
+
+  // User Info
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+
+  // New Analysis
   const [file, setFile] = useState<File | null>(null);
   const [jurisdiction, setJurisdiction] = useState("India");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [error, setError] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [currentResult, setCurrentResult] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [uploadError, setUploadError] = useState("");
+
+  // History
+  const [history, setHistory] = useState<Contract[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Fetch current logged-in user
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const res = await api.get("/auth/me");
+        setCurrentUser(res.data);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (err) {
+        console.error("Failed to fetch user info");
+      }
+    };
+    fetchCurrentUser();
+  }, []);
+
+  // Fetch history when tab changes
+  useEffect(() => {
+    if (activeTab === "history") {
+      fetchHistory();
+    }
+  }, [activeTab]);
+
+  const fetchHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await api.get("/contracts/");
+      setHistory(res.data);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (err) {
+      console.error("Failed to load history");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) return;
 
     setLoading(true);
-    setError("");
+    setUploadError("");
 
     const formData = new FormData();
     formData.append("file", file);
@@ -51,25 +104,58 @@ export default function Dashboard() {
       const res = await api.post("/contracts/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      setResult(res.data);
+      setCurrentResult(res.data);
+      if (activeTab === "history") fetchHistory();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Upload failed");
+      setUploadError(err.response?.data?.detail || "Upload failed");
     } finally {
       setLoading(false);
     }
   };
 
-  const riskColor =
-    result && result.analysis.overall_risk > 70
-      ? "text-red-600"
-      : result && result.analysis.overall_risk > 40
-        ? "text-amber-600"
-        : "text-emerald-600";
+  const deleteContract = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this document?")) return;
+
+    try {
+      await api.delete(`/contracts/${id}`);
+      fetchHistory();
+      if (currentResult?.id === id) setCurrentResult(null);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (err) {
+      alert("Failed to delete document");
+    }
+  };
+
+  const viewContract = (contract: Contract) => {
+    let analysisData = contract.risk_report;
+    if (typeof analysisData === "string") {
+      try {
+        analysisData = JSON.parse(analysisData);
+      } catch {
+        analysisData = { overall_risk: 50, summary: "Analysis unavailable" };
+      }
+    }
+
+    setCurrentResult({
+      id: contract.id,
+      filename: contract.filename,
+      analysis: analysisData,
+    });
+    setActiveTab("new");
+  };
+
+  const getRiskColor = (risk: number) => {
+    if (risk > 70) return "text-red-600";
+    if (risk > 40) return "text-amber-600";
+    return "text-emerald-600";
+  };
+
+  const currentRisk = currentResult?.analysis?.overall_risk || 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top Navbar */}
+      {/* Top Navbar - Now Shows Real User */}
       <nav className="bg-white border-b shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -92,13 +178,20 @@ export default function Dashboard() {
               <span>🇮🇳 India Mode</span>
             </div>
 
+            {/* Real Logged-in User */}
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-blue-100 text-blue-700 rounded-2xl flex items-center justify-center font-semibold">
-                TS
+              <div className="w-9 h-9 bg-blue-100 text-blue-700 rounded-2xl flex items-center justify-center font-semibold text-lg">
+                {currentUser?.full_name
+                  ? currentUser.full_name.charAt(0).toUpperCase()
+                  : "?"}
               </div>
               <div>
-                <p className="text-sm font-medium">Test User</p>
-                <p className="text-xs text-gray-500">test@example.com</p>
+                <p className="text-sm font-medium">
+                  {currentUser?.full_name || "Loading..."}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {currentUser?.email || ""}
+                </p>
               </div>
             </div>
 
@@ -109,169 +202,223 @@ export default function Dashboard() {
               }}
               className="flex items-center gap-2 text-red-600 hover:text-red-700 transition"
             >
-              <LogOut size={20} />
+              <LogOut size={20} /> Logout
             </button>
           </div>
         </div>
       </nav>
 
       <div className="max-w-7xl mx-auto px-8 py-10">
-        <div className="flex justify-between items-end mb-10">
-          <div>
-            <h2 className="text-5xl font-bold text-gray-900">
-              Analyze Your Document
-            </h2>
-            <p className="text-xl text-gray-600 mt-2">
-              Upload any legal paper — contract, loan receipt, rent agreement,
-              government document
-            </p>
-          </div>
+        {/* Tabs */}
+        <div className="flex border-b mb-10">
+          <button
+            onClick={() => setActiveTab("new")}
+            className={`px-8 py-4 font-semibold text-lg border-b-4 transition-all ${
+              activeTab === "new"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            New Analysis
+          </button>
+          <button
+            onClick={() => setActiveTab("history")}
+            className={`px-8 py-4 font-semibold text-lg border-b-4 transition-all ${
+              activeTab === "history"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            My Documents ({history.length})
+          </button>
         </div>
 
-        {/* Upload Card */}
-        <div className="bg-white rounded-3xl shadow-xl p-10 mb-12">
-          <form onSubmit={handleUpload} className="space-y-8">
-            <div className="flex gap-6">
-              <div className="flex-1">
-                <label className="block text-sm font-semibold mb-3">
-                  Jurisdiction
-                </label>
-                <select
-                  value={jurisdiction}
-                  onChange={(e) => setJurisdiction(e.target.value)}
-                  className="w-full p-5 border-2 border-gray-200 rounded-3xl focus:border-blue-600 outline-none text-lg"
+        {/* Rest of your Dashboard code remains the same */}
+        {/* NEW ANALYSIS TAB */}
+        {activeTab === "new" && (
+          <div className="space-y-10">
+            {/* Upload Section - (same as before) */}
+            <div className="bg-white rounded-3xl shadow-xl p-10">
+              <h2 className="text-3xl font-bold mb-8">Upload New Document</h2>
+              <form onSubmit={handleUpload} className="space-y-8">
+                <div>
+                  <label className="block text-sm font-medium mb-3">
+                    Jurisdiction
+                  </label>
+                  <select
+                    value={jurisdiction}
+                    onChange={(e) => setJurisdiction(e.target.value)}
+                    className="w-full p-5 border-2 border-gray-200 rounded-3xl focus:border-blue-600 text-lg"
+                  >
+                    <option value="India">🇮🇳 India</option>
+                    <option value="USA">🇺🇸 USA</option>
+                    <option value="EU">🇪🇺 EU</option>
+                  </select>
+                </div>
+
+                <div
+                  className="border-4 border-dashed border-gray-300 rounded-3xl p-20 text-center hover:border-blue-500 transition cursor-pointer"
+                  onClick={() =>
+                    document.getElementById("file-upload")?.click()
+                  }
                 >
-                  <option value="India">🇮🇳 India</option>
-                  <option value="USA">🇺🇸 United States</option>
-                  <option value="EU">🇪🇺 European Union</option>
-                </select>
-              </div>
-            </div>
-
-            <div
-              className="border-4 border-dashed border-blue-200 rounded-3xl p-16 text-center hover:border-blue-400 transition cursor-pointer"
-              onClick={() => document.getElementById("file-upload")?.click()}
-            >
-              <Upload className="mx-auto h-20 w-20 text-blue-400 mb-6" />
-              <p className="text-2xl font-semibold text-gray-700">
-                Drop your document here
-              </p>
-              <p className="text-gray-500 mt-3">
-                PDF, DOCX, JPG, PNG — scanned or typed
-              </p>
-              <input
-                type="file"
-                id="file-upload"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="hidden"
-                accept=".pdf,.docx,.png,.jpg,.jpeg"
-              />
-              {file && (
-                <div className="mt-8 inline-flex items-center gap-3 bg-green-100 text-green-700 px-6 py-3 rounded-3xl">
-                  <FileText size={22} />
-                  <span className="font-medium">{file.name}</span>
-                </div>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              disabled={!file || loading}
-              className="w-full py-6 text-2xl font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-3xl hover:from-blue-700 hover:to-indigo-700 transition disabled:opacity-50 flex items-center justify-center gap-3"
-            >
-              {loading ? (
-                <>
-                  Analyzing with AI <span className="animate-pulse">...</span>
-                </>
-              ) : (
-                <>Analyze Document</>
-              )}
-            </button>
-          </form>
-        </div>
-
-        {/* Results Section */}
-        {result && (
-          <div className="grid grid-cols-12 gap-8">
-            {/* Risk Overview */}
-            <div className="col-span-12 lg:col-span-4">
-              <div className="bg-white rounded-3xl shadow-xl p-8 h-full">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-bold">Risk Score</h3>
-                  <div className={`text-7xl font-black ${riskColor}`}>
-                    {result.analysis.overall_risk}
-                  </div>
-                </div>
-
-                <div className="h-3 bg-gray-100 rounded-3xl overflow-hidden mb-8">
-                  <div
-                    className={`h-3 rounded-3xl transition-all ${result.analysis.overall_risk > 70 ? "bg-red-500" : result.analysis.overall_risk > 40 ? "bg-amber-500" : "bg-emerald-500"}`}
-                    style={{ width: `${result.analysis.overall_risk}%` }}
-                  ></div>
-                </div>
-
-                <p className="text-gray-600 leading-relaxed">
-                  {result.analysis.summary}
-                </p>
-
-                {result.analysis.top_risks?.length > 0 && (
-                  <div className="mt-10">
-                    <h4 className="font-semibold mb-4">Top Concerns</h4>
-                    <ul className="space-y-3">
-                      {result.analysis.top_risks.map((risk, i) => (
-                        <li key={i} className="flex gap-3 text-red-600">
-                          <span className="text-xl">⚠️</span>
-                          <span>{risk}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Detailed Clauses */}
-            <div className="col-span-12 lg:col-span-8">
-              <div className="bg-white rounded-3xl shadow-xl p-8">
-                <h3 className="text-2xl font-bold mb-6">
-                  Key Clauses &amp; Risks
-                </h3>
-                <div className="space-y-6">
-                  {result.analysis.clauses &&
-                  result.analysis.clauses.length > 0 ? (
-                    result.analysis.clauses.map((clause, index) => (
-                      <div
-                        key={index}
-                        className="border border-gray-100 rounded-3xl p-7 hover:shadow transition"
-                      >
-                        <div className="flex justify-between items-start">
-                          <h4 className="font-semibold text-lg">
-                            {clause.clause}
-                          </h4>
-                          <span
-                            className={`px-5 py-2 text-sm font-medium rounded-3xl ${clause.risk > 60 ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}
-                          >
-                            Risk {clause.risk}
-                          </span>
-                        </div>
-                        <p className="text-gray-700 mt-4">
-                          {clause.explanation}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500 italic">
-                      No specific clauses detected yet.
+                  <Upload className="mx-auto h-16 w-16 text-gray-400 mb-6" />
+                  <p className="text-2xl font-medium">
+                    Drop your document here
+                  </p>
+                  <p className="text-gray-500 mt-2">
+                    PDF, DOCX, or scanned images supported
+                  </p>
+                  <input
+                    type="file"
+                    id="file-upload"
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    className="hidden"
+                    accept=".pdf,.docx,.png,.jpg,.jpeg"
+                  />
+                  {file && (
+                    <p className="mt-8 text-green-600 font-medium">
+                      Selected: {file.name}
                     </p>
                   )}
                 </div>
-              </div>
+
+                <button
+                  type="submit"
+                  disabled={!file || loading}
+                  className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white text-xl font-semibold rounded-3xl disabled:opacity-50 transition"
+                >
+                  {loading ? "Analyzing with AI..." : "Analyze Document"}
+                </button>
+              </form>
             </div>
+
+            {/* Analysis Result Section - (same as your previous code) */}
+            {currentResult && (
+              <div className="grid grid-cols-12 gap-8">
+                <div className="col-span-12 lg:col-span-4">
+                  <div className="bg-white rounded-3xl shadow-xl p-8 h-full">
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-2xl font-bold">Risk Score</h3>
+                      <div
+                        className={`text-7xl font-black ${getRiskColor(currentRisk)}`}
+                      >
+                        {currentRisk}
+                      </div>
+                    </div>
+
+                    <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-8">
+                      <div
+                        className={`h-3 rounded-full transition-all ${
+                          currentRisk > 70
+                            ? "bg-red-500"
+                            : currentRisk > 40
+                              ? "bg-amber-500"
+                              : "bg-emerald-500"
+                        }`}
+                        style={{ width: `${currentRisk}%` }}
+                      />
+                    </div>
+
+                    <p className="text-gray-700 leading-relaxed">
+                      {currentResult.analysis?.summary ||
+                        "No summary available"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="col-span-12 lg:col-span-8">
+                  <div className="bg-white rounded-3xl shadow-xl p-8">
+                    <h3 className="text-2xl font-bold mb-6">
+                      Key Clauses & Risks
+                    </h3>
+                    <div className="space-y-6">
+                      {currentResult.analysis?.clauses?.length > 0 ? (
+                        currentResult.analysis.clauses.map(
+                          (clause: Clause, index: number) => (
+                            <div
+                              key={index}
+                              className="border border-gray-100 rounded-3xl p-7 hover:shadow transition"
+                            >
+                              <div className="flex justify-between items-start">
+                                <h4 className="font-semibold text-lg">
+                                  {clause.clause}
+                                </h4>
+                                <span
+                                  className={`px-5 py-2 text-sm font-medium rounded-3xl ${clause.risk > 60 ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}
+                                >
+                                  Risk {clause.risk}
+                                </span>
+                              </div>
+                              <p className="text-gray-700 mt-4">
+                                {clause.explanation}
+                              </p>
+                            </div>
+                          ),
+                        )
+                      ) : (
+                        <p className="text-gray-500 italic">
+                          No specific clauses detected yet.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {error && (
-          <p className="text-red-600 mt-6 text-center font-medium">{error}</p>
+        {/* HISTORY TAB - Same as before */}
+        {activeTab === "history" && (
+          <div className="bg-white rounded-3xl shadow-xl p-8">
+            <h2 className="text-3xl font-bold mb-8">Your Previous Documents</h2>
+            {historyLoading ? (
+              <p>Loading your documents...</p>
+            ) : history.length === 0 ? (
+              <p className="text-gray-500 text-center py-20">
+                No documents yet. Start by uploading one!
+              </p>
+            ) : (
+              <div className="grid gap-6">
+                {history.map((contract) => (
+                  <div
+                    key={contract.id}
+                    className="border rounded-3xl p-6 flex justify-between items-center hover:shadow transition"
+                  >
+                    <div className="flex items-center gap-5">
+                      <FileText className="text-blue-600" size={36} />
+                      <div>
+                        <p className="font-medium text-lg">
+                          {contract.filename}
+                        </p>
+                        <p className="text-sm text-gray-500 flex items-center gap-2">
+                          <Calendar size={16} />{" "}
+                          {new Date(contract.created_at).toLocaleDateString(
+                            "en-IN",
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-4">
+                      <button
+                        onClick={() => viewContract(contract)}
+                        className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl hover:bg-blue-700"
+                      >
+                        <Eye size={20} /> View
+                      </button>
+                      <button
+                        onClick={() => deleteContract(contract.id)}
+                        className="flex items-center gap-2 px-6 py-3 bg-red-100 text-red-600 rounded-2xl hover:bg-red-200"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

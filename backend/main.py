@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 import models
+from routers import auth, contracts
 
 app = FastAPI(title="ContractBuddy API")
 
