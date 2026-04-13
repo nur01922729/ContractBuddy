@@ -100,18 +100,20 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 def extract_text_from_file(file_path: str) -> str:
     print(f"Extracting from: {file_path}")
     text = ""
+    ext = file_path.lower().split(".")[-1]
 
     try:
-        # Basic extraction with PyMuPDF (works for PDF and many DOCX)
+        # PyMuPDF - best for PDFs and many DOCX
+        import fitz
         doc = fitz.open(file_path)
         for page in doc:
-            text += page.get_text("text")
+            text += page.get_text("text") + "\n"
         doc.close()
     except Exception as e:
         print("PyMuPDF error:", e)
 
-    # DOCX fallback if PyMuPDF gave very little text
-    if len(text.strip()) < 300 and file_path.lower().endswith('.docx'):
+    # Better DOCX support if PyMuPDF failed
+    if len(text.strip()) < 200 and ext == "docx":
         try:
             from docx import Document
             doc = Document(file_path)
@@ -120,24 +122,7 @@ def extract_text_from_file(file_path: str) -> str:
                     text += para.text + "\n"
             print("DOCX extraction successful")
         except Exception as e:
-            print("DOCX fallback error:", e)
-
-    # OCR fallback if still poor text
-    if len(text.strip()) < 300:
-        print("🔍 Using OCR fallback...")
-        try:
-            reader = easyocr.Reader(['en', 'hi'], gpu=False)
-            doc = fitz.open(file_path)
-            for page in doc:
-                pix = page.get_pixmap(dpi=300)
-                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                img_byte_arr = io.BytesIO()
-                img.save(img_byte_arr, format='PNG')
-                result = reader.readtext(img_byte_arr.getvalue(), detail=0)
-                text += " ".join(result) + "\n"
-            doc.close()
-        except Exception as e:
-            print("OCR failed:", e)
+            print("DOCX error:", e)
 
     final_text = text.strip()
     print(f"Final extracted length: {len(final_text)} characters")
