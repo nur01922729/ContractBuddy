@@ -58,8 +58,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [currentResult, setCurrentResult] = useState<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [uploadError, setUploadError] = useState("");
+  const [, setUploadError] = useState("");
 
   // History
   const [history, setHistory] = useState<Contract[]>([]);

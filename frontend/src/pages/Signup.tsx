@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+// import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import api from "../lib/axios";
 import { FileText, Lock, Mail, User } from "lucide-react";
 
@@ -10,7 +11,7 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
