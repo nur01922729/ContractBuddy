@@ -689,8 +689,24 @@ export default function Dashboard() {
             {generatedContract && (
               <div className="bg-white rounded-3xl shadow-xl p-10">
                 <h3 className="text-2xl font-bold mb-6">Generated Contract</h3>
-                <div className="bg-gray-50 p-8 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap border max-h-[500px] overflow-auto">
-                  {generatedContract}
+                <div className="bg-gray-50 p-8 rounded-2xl text-sm leading-relaxed border max-h-[500px] overflow-auto prose prose-sm max-w-none">
+                  <div
+                    dangerouslySetInnerHTML={{
+                      __html: generatedContract
+                        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+                        .replace(
+                          /^### (.*$)/gm,
+                          '<h3 class="font-bold mt-4 mb-2">$1</h3>',
+                        )
+                        .replace(
+                          /^## (.*$)/gm,
+                          '<h2 class="font-bold mt-5 mb-2">$1</h2>',
+                        )
+                        .replace(/^\* (.*$)/gm, '<div class="ml-4">• $1</div>')
+                        .replace(/^- (.*$)/gm, '<div class="ml-4">• $1</div>')
+                        .replace(/\n/g, "<br>"),
+                    }}
+                  />
                 </div>
 
                 <div className="mt-8 flex gap-4">
@@ -769,9 +785,24 @@ export default function Dashboard() {
             {compareResult && (
               <div className="mt-12 bg-gray-50 p-8 rounded-2xl">
                 <h3 className="font-bold text-xl mb-6">Comparison Result</h3>
-                <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
-                  {compareResult.analysis}
-                </div>
+                <div
+                  className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
+                  dangerouslySetInnerHTML={{
+                    __html: compareResult.analysis
+                      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+                      .replace(
+                        /^### (.*$)/gm,
+                        '<h3 class="font-bold mt-4 mb-2">$1</h3>',
+                      )
+                      .replace(
+                        /^## (.*$)/gm,
+                        '<h2 class="font-bold mt-5 mb-2">$1</h2>',
+                      )
+                      .replace(/^\* (.*$)/gm, '<div class="ml-4">• $1</div>')
+                      .replace(/^- (.*$)/gm, '<div class="ml-4">• $1</div>')
+                      .replace(/\n/g, "<br>"),
+                  }}
+                />
               </div>
             )}
           </div>

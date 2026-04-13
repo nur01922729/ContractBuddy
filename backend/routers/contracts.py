@@ -283,7 +283,7 @@ Keep response practical, professional, and easy to understand. Use simple Englis
         print("Negotiation error:", str(e))
         return {"suggestion": "Sorry, I couldn't generate negotiation suggestions right now. Please try again later."}
 
-# ChatBot
+# ChatBot - Fixed to properly pass document context
 @router.post("/chat")
 async def chat_with_contract(
     request: dict,
@@ -305,10 +305,14 @@ async def chat_with_contract(
     if not contract:
         raise HTTPException(status_code=404, detail="Contract not found")
 
+    # Properly load the document context
     try:
         analysis = eval(contract.risk_report) if isinstance(contract.risk_report, str) else contract.risk_report
     except:
-        analysis = {"summary": contract.raw_text[:500] if contract.raw_text else ""}
+        analysis = {"summary": "No summary available"}
+
+    # Get the raw text of the document for better context
+    raw_text = contract.raw_text if hasattr(contract, 'raw_text') and contract.raw_text else ""
 
     lang_instruction = {
         "english": "Answer in clear, professional English.",
@@ -317,13 +321,15 @@ async def chat_with_contract(
     }.get(language, "Answer in simple Hinglish.")
 
     system_prompt = f"""You are ContractBuddy, a friendly and expert Indian legal assistant.
-    {lang_instruction}
+{lang_instruction}
 
-    Current Document:
-    Summary: {analysis.get('summary', 'No summary available')}
-    Overall Risk: {analysis.get('overall_risk', 50)}/100
+Current Document Summary: {analysis.get('summary', 'No summary available')}
+Overall Risk: {analysis.get('overall_risk', 50)}/100
 
-    Be practical, honest and easy to understand."""
+Here is the actual document text for reference:
+{raw_text[:12000]}
+
+Answer the user's question based on this specific document. Be accurate and practical."""
 
     try:
         from utils import client
@@ -335,11 +341,11 @@ async def chat_with_contract(
                 {"role": "user", "content": message}
             ],
             temperature=0.7,
-            max_tokens=900
+            max_tokens=1000
         )
         
         return {"response": response.choices[0].message.content.strip()}
         
     except Exception as e:
         print("Chat error:", str(e))
-        return {"response": "माफ़ कीजिए, अभी जवाब देने में समस्या हो रही है। कृपया दोबारा प्रयास करें।"}
+        return {"response": "Sorry, I couldn't process that. Please try again."}
