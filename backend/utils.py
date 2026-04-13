@@ -1,5 +1,5 @@
 import fitz  # PyMuPDF
-import easyocr
+# import easyocr
 import io
 from PIL import Image
 from groq import Groq
@@ -100,11 +100,10 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 def extract_text_from_file(file_path: str) -> str:
     print(f"Extracting from: {file_path}")
     text = ""
-    ext = file_path.lower().split(".")[-1]
 
     try:
-        # PyMuPDF - best for PDFs and many DOCX
-        import fitz
+        # PyMuPDF - primary extraction (works well for PDFs and most DOCX)
+        import fitz # pyright: ignore[reportMissingImports]
         doc = fitz.open(file_path)
         for page in doc:
             text += page.get_text("text") + "\n"
@@ -112,8 +111,8 @@ def extract_text_from_file(file_path: str) -> str:
     except Exception as e:
         print("PyMuPDF error:", e)
 
-    # Better DOCX support if PyMuPDF failed
-    if len(text.strip()) < 200 and ext == "docx":
+    # Extra DOCX support if needed
+    if len(text.strip()) < 300 and file_path.lower().endswith('.docx'):
         try:
             from docx import Document
             doc = Document(file_path)
