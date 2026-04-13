@@ -1,8 +1,8 @@
-import fitz  # PyMuPDF
+import fitz  # pyright: ignore[reportMissingImports] # PyMuPDF
 # import easyocr
 import io
 from PIL import Image
-from groq import Groq
+from groq import Groq # pyright: ignore[reportMissingImports]
 import os
 from dotenv import load_dotenv
 import json
